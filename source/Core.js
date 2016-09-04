@@ -10,7 +10,9 @@ export default Core = {
 
 		for (var key in object) {
 			var src = object[key],
-				type = $type(src);
+				// TODO: Why can't I use this?  this is the global window object
+				// in this contentx?
+				type = Core.$type(src);
 
 			if (deep && type == 'object') {
 				var len = _set.length,
@@ -36,18 +38,79 @@ export default Core = {
 		}
 
 		return target;
-	}
-}
+	},
+	/**
+	 * Serialize object
+	 *
+	 * @param {object} obj
+	 * @returns {string} value
+	 */
+	$serialize(obj) {
+		var arr = [];
 
-/**
- * Determine the JavaScript type of an object
- *
- * @param {*} obj
- * @returns string
- */
-function $type(obj) {
-	return obj === U ? 'undefined' :
-		Object.prototype.toString.call(obj)
-			.replace(/^\[object (.+)]$/, '$1')
-			.toLowerCase();
+		Object.keys(obj || {}).forEach(function(key) {
+			var val = obj[key];
+			key = encodeURIComponent(key);
+
+			if (typeof val != 'object') {
+				arr.push(key + '=' + encodeURIComponent(val));
+			} else if (Array.isArray(val)) {
+				val.forEach(function(el) {
+					arr.push(key + '[]=' + encodeURIComponent(el));
+				});
+			}
+		});
+
+		return arr.length ? arr.join('&').replace(/%20/g, '+') : '';
+	},
+
+	/**
+	 * Convert serialized string back into an object
+	 *
+	 * @param {string} str
+	 * @returns {object} value
+	 */
+	$unserialize(str) {
+		var obj = {};
+
+		decodeURIComponent(str)
+			.replace(/^\?/, '')
+			.split('&').forEach(function(el) {
+				var split = el.split('='),
+					key = split[0],
+					val = split[1].replace('+', ' ') || '';
+
+				if (obj[key]) {
+					obj[key] = W.$toArray(obj[key]);
+					obj[key].push(val);
+				} else {
+					obj[key] = val;
+				}
+			});
+
+		return obj;
+	},
+
+	/**
+	 * Cast value to array if it isn't one
+	 *
+	 * @param {*} val
+	 * @returns {Array} value
+	 */
+	$toArray(val) {
+		return val !== U ? (Array.isArray(val) ? val : [val]) : [];
+	},
+
+	/**
+	 * Determine the JavaScript type of an object
+	 *
+	 * @param {*} obj
+	 * @returns string
+	 */
+	$type(obj) {
+		return obj === U ? 'undefined' :
+			Object.prototype.toString.call(obj)
+				.replace(/^\[object (.+)]$/, '$1')
+				.toLowerCase();
+	}
 }
