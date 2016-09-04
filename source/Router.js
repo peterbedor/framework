@@ -12,21 +12,46 @@ const _optionalParam = /\((.*?)\)/g,
 export default Router = {
 	routes: [],
 	routeMap: {},
+	middlewareMap: {},
 
 	add(path, action, middleware = false) {
-		this.routes.push(_path);
-		this.routeMap[_path] = action;
+		path = _parsePath(path);
+
+		this.routes.push(path);
+
+		this.routeMap[path] = {};
+
+		this.routeMap[path].action = action;
+		this.routeMap[path].middleware = {};
 
 		if (middleware) {
-			middleware();
+			if (Core.$isArray(middleware)) {
+				let i = 0;
+
+				for (; i < middleware.length; i++) {
+					this.routeMap[path].middleware[middleware[i]] = this.middlewareMap[middleware[i]];
+				}
+			} else {
+				this.routeMap[path].middleware[middleware] = this.middlewareMap[middleware];
+			}
 		}
+
+		return this;
+	},
+
+	middleware(name, callback) {
+		this.middlewareMap[name] = callback;
+
+		return this;
 	},
 
 	run() {
-		let i = 0;
+		let routes = this.routes,
+			map = this.routeMap,
+			i = 0;
 
-		for (; i < this.routes.length; i++) {
-			let route = this.routes[i],
+		for (; i < routes.length; i++) {
+			let route = routes[i],
 				match = _match(
 					_routeToRegExp(route)
 				);
@@ -34,42 +59,76 @@ export default Router = {
 			if (match) {
 
 				// If second parameter is a closure, run it and return
-				if (typeof this.routeMap[route] === 'function') {
-					this.routeMap[route]();
+				if (typeof map[route] === 'function') {
+					map[route]();
 
 					return;
 				}
 
+				let middlewares = Object.keys(map[route].middleware),
+					c = 0;
+
+				for (; c < middlewares.length; c++) {
+					map[route].middleware[middlewares[c]](_path);
+				}
+
 				let matched = _extract(
-					this.routeMap[route]
+					map[route].action
 				);
 
 				let variables = _extractVariables(
 					_routeToRegExp(route)
 				);
 
-				let controller = window[matched.controller];
+				if (Core.$isArray(matched.controller)) {
+					let b = 0;
 
-				// Run __construct and init methods if exist
-				if (! matched.action) {
-					if (controller.hasOwnProperty('__construct')) {
-						controller.__construct();
-					}
+					for (; b < matched.controller.length; b++) {
+						let controller = window[matched.controller[i]];
 
-					if (controller.hasOwnProperty('init')) {
-						controller.init();
+						// Run __construct and init methods if exist
+						if (! matched.action[b]) {
+							if (controller.hasOwnProperty('__construct')) {
+								controller.__construct();
+							}
+
+							if (controller.hasOwnProperty('init')) {
+								controller.init();
+							}
+						} else if (controller[matched.action[b]]) {
+							if (typeof controller[matched.action[b]] == 'function') {
+								if (controller.hasOwnProperty('__construct')) {
+									controller.__construct();
+								}
+
+								controller[matched.action[b]](variables);
+							}
+						}
 					}
-				} else if (controller[matched.action]) {
-					if (typeof controller[matched.action] == 'function') {
+				} else {
+					let controller = window[matched.controller];
+
+					// Run __construct and init methods if exist
+					if (! matched.action) {
 						if (controller.hasOwnProperty('__construct')) {
 							controller.__construct();
 						}
 
-						controller[matched.action](variables);
-					}
-				}
+						if (controller.hasOwnProperty('init')) {
+							controller.init();
+						}
+					} else if (controller[matched.action]) {
+						if (typeof controller[matched.action] == 'function') {
+							if (controller.hasOwnProperty('__construct')) {
+								controller.__construct();
+							}
 
-				break;
+							controller[matched.action](variables);
+						}
+					}
+
+					break;
+				}
 			}
 		}
 	}
@@ -129,10 +188,28 @@ function _routeToRegExp(route) {
  * @return {object}
  */
 function _extract(methodAction) {
-	let split = methodAction.split(':');
+	if (Core.$isArray(methodAction)) {
+		let i = 0,
+			controllers = [],
+			actions = [];
 
-	return {
-		controller: split[0],
-		action: split[1]
+		for (; i < methodAction.length; i++) {
+			let split = methodAction[i].split(':');
+
+			controllers.push(split[0]);
+			actions.push(split[1]);
+		}
+
+		return {
+			controller: controllers,
+			action: actions
+		}
+	} else {
+		let split = methodAction.split(':');
+
+		return {
+			controller: split[0],
+			action: split[1]
+		}
 	}
 }
