@@ -112,5 +112,15 @@ export default Core = {
 			Object.prototype.toString.call(obj)
 				.replace(/^\[object (.+)]$/, '$1')
 				.toLowerCase();
-	}
+	},
+
+	/**
+	 * Determine if value is an array
+	 *
+	 * @param {*} obj
+	 * @returns {boolean}
+	 */
+	$isArray(obj) {
+		return Array.isArray(obj);
+	},
 }
