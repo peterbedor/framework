@@ -58,9 +58,13 @@ export default Router = {
 
 			if (match) {
 
+				let variables = _extractVariables(
+					_routeToRegExp(route)
+				);
+
 				// If second parameter is a closure, run it and return
-				if (typeof map[route] === 'function') {
-					map[route]();
+				if (typeof map[route].action === 'function') {
+					map[route].action(variables);
 
 					return;
 				}
@@ -74,10 +78,6 @@ export default Router = {
 
 				let matched = _extract(
 					map[route].action
-				);
-
-				let variables = _extractVariables(
-					_routeToRegExp(route)
 				);
 
 				if (Core.$isArray(matched.controller)) {
