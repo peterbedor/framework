@@ -30,6 +30,15 @@ export default Fetch = {
 		return _makeRequest(_extend({
 			method: 'DELETE'
 		}, options));
+	},
+
+	getJson(url, callback) {
+		return _makeRequest(_extend({
+			method: 'GET',
+			url: url,
+			json: true,
+			success: callback
+		}))
 	}
 };
 
